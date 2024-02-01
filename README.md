@@ -16,3 +16,9 @@ Nyx is provided under the AGPLv3 License. By using this software, you assume res
 
 ## Who am I?
 An GNC and flight dynamics engineer with a heavy background in software. I currently work for Rocket Lab USA on the Blue Ghost lunar lander. -- Find me on [LinkedIn](https://www.linkedin.com/in/chrisrabotin/).
+
+# Run performance tests
+
+```
+cargo test --release perf_test -- --nocapture
+```

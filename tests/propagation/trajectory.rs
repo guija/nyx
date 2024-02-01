@@ -17,6 +17,52 @@ use std::sync::mpsc::channel;
 
 #[allow(clippy::identity_op)]
 #[test]
+fn perf_test() {
+    let _ = pretty_env_logger::try_init();
+    // Test that we can correctly interpolate a spacecraft orbit
+    let cosm = Cosm::de438();
+    let eme2k = cosm.frame("EME2000");
+
+    // let start_dt = Epoch::from_gregorian_utc_at_noon(2021, 1, 1);
+    // let start_dt = Epoch::from_mjd_tai(J2000_OFFSET);
+    let start_dt = Epoch::from_str("2000-01-01T11:58:55.816Z").unwrap();
+    println!("start_dt: {}", start_dt);
+
+    let iterations = 50;
+    for i in 1..iterations + 1 {
+        let start_state = Orbit::cartesian(
+            7.0e6 / 1e3,
+            1.0e6 / 1e3,
+            4.0e6 / 1e3,
+            -0.5,
+            8.,
+            1.,
+            start_dt,
+            eme2k,
+        );
+
+        let mut opts = PropOpts::default();
+        opts.min_step = Duration::from_seconds(0.001);
+        opts.max_step = Duration::from_seconds(200.0);
+        opts.tolerance = 1e-12;
+
+        let dynamics = OrbitalDynamics::two_body();
+        let setup = Propagator::new::<Dormand78>(dynamics, PropOpts::default());
+        let mut prop = setup.with(start_state);
+        // The trajectory must always be generated on its own thread, no need to worry about it ;-)
+        let now = Epoch::now().unwrap();
+        // let (end_state, ephem) = prop.for_duration_with_traj(31 * Unit::Day).unwrap();
+        let end_state = prop.for_duration(31 * Unit::Day).unwrap();
+        let exec_time = Epoch::now().unwrap() - now;
+        println!("#{i} duration = {exec_time}");
+        if (i == iterations) {
+            println!("final_state: {}", end_state);
+        }
+    }
+}
+
+#[allow(clippy::identity_op)]
+#[test]
 fn traj_ephem_forward() {
     let _ = pretty_env_logger::try_init();
     // Test that we can correctly interpolate a spacecraft orbit
