@@ -20,5 +20,7 @@ An GNC and flight dynamics engineer with a heavy background in software. I curre
 # Run performance tests
 
 ```
+rustup override set nightly
+rustup update
 cargo test --release perf_test -- --nocapture
 ```

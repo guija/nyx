@@ -15,6 +15,11 @@ use nyx::State;
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
 
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 #[allow(clippy::identity_op)]
 #[test]
 fn perf_test() {
@@ -23,12 +28,13 @@ fn perf_test() {
     let cosm = Cosm::de438();
     let eme2k = cosm.frame("EME2000");
 
+    let mut durations: Vec<Duration> = Vec::new();
     // let start_dt = Epoch::from_gregorian_utc_at_noon(2021, 1, 1);
     // let start_dt = Epoch::from_mjd_tai(J2000_OFFSET);
     let start_dt = Epoch::from_str("2000-01-01T11:58:55.816Z").unwrap();
     println!("start_dt: {}", start_dt);
 
-    let iterations = 50;
+    let iterations = 30;
     for i in 1..iterations + 1 {
         let start_state = Orbit::cartesian(
             7.0e6 / 1e3,
@@ -44,6 +50,8 @@ fn perf_test() {
         let mut opts = PropOpts::default();
         opts.min_step = Duration::from_seconds(0.001);
         opts.max_step = Duration::from_seconds(200.0);
+        opts.init_step = Duration::from_seconds(60.);
+        // opts.fixed_step = true;
         opts.tolerance = 1e-12;
 
         let dynamics = OrbitalDynamics::two_body();
@@ -55,10 +63,19 @@ fn perf_test() {
         let end_state = prop.for_duration(31 * Unit::Day).unwrap();
         let exec_time = Epoch::now().unwrap() - now;
         println!("#{i} duration = {exec_time}");
-        if (i == iterations) {
+        durations.push(exec_time);
+        if i == iterations {
             println!("final_state: {}", end_state);
         }
     }
+    // Calculate mean and median of durations vector
+    let sum: f64 = durations.iter().map(|x| x.to_seconds()).sum();
+    let sum = sum * 1000.;
+    let mean = sum / (iterations as f64);
+    durations.sort();
+    let median = durations[iterations / 2];
+    println!("mean = {} s", mean);
+    println!("median = {} s", median.to_seconds() * 1000.);
 }
 
 #[allow(clippy::identity_op)]
