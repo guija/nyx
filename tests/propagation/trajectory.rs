@@ -36,26 +36,17 @@ fn perf_test() {
 
     let iterations = 30;
     for i in 1..iterations + 1 {
-        let start_state = Orbit::cartesian(
-            7.0e6 / 1e3,
-            1.0e6 / 1e3,
-            4.0e6 / 1e3,
-            -0.5,
-            8.,
-            1.,
-            start_dt,
-            eme2k,
-        );
+        let start_state = Orbit::cartesian(7_000., 1_000., 4_000., -0.5, 8., 1., start_dt, eme2k);
 
         let mut opts = PropOpts::default();
         opts.min_step = Duration::from_seconds(0.001);
         opts.max_step = Duration::from_seconds(200.0);
         opts.init_step = Duration::from_seconds(60.);
-        // opts.fixed_step = true;
+        opts.fixed_step = true;
         opts.tolerance = 1e-12;
 
         let dynamics = OrbitalDynamics::two_body();
-        let setup = Propagator::new::<Dormand78>(dynamics, PropOpts::default());
+        let setup = Propagator::new::<RK4Fixed>(dynamics, opts);
         let mut prop = setup.with(start_state);
         // The trajectory must always be generated on its own thread, no need to worry about it ;-)
         let now = Epoch::now().unwrap();
@@ -74,8 +65,8 @@ fn perf_test() {
     let mean = sum / (iterations as f64);
     durations.sort();
     let median = durations[iterations / 2];
-    println!("mean = {} s", mean);
-    println!("median = {} s", median.to_seconds() * 1000.);
+    println!("mean = {} ms", mean);
+    println!("median = {} ms", median.to_seconds() * 1000.);
 }
 
 #[allow(clippy::identity_op)]
