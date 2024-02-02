@@ -1,7 +1,7 @@
 extern crate nyx_space as nyx;
 extern crate pretty_env_logger;
 
-use hifitime::TimeUnits;
+use hifitime::{Duration, TimeUnits};
 use nyx::cosmic::eclipse::EclipseLocator;
 use nyx::cosmic::{Cosm, GuidanceMode, Orbit, Spacecraft};
 use nyx::dynamics::guidance::{GuidanceLaw, Ruggiero, Thruster};
@@ -15,10 +15,10 @@ use nyx::State;
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
 
-use mimalloc::MiMalloc;
+// use mimalloc::MiMalloc;
 
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
+// #[global_allocator]
+// static GLOBAL: MiMalloc = MiMalloc;
 
 #[allow(clippy::identity_op)]
 #[test]
