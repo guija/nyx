@@ -1,11 +1,12 @@
 extern crate nyx_space as nyx;
 extern crate pretty_env_logger;
 
-use hifitime::{Duration, TimeUnits};
+use hifitime::{Duration, TimeUnits, J2000_OFFSET};
 use nyx::cosmic::eclipse::EclipseLocator;
-use nyx::cosmic::{Cosm, GuidanceMode, Orbit, Spacecraft};
+use nyx::cosmic::{Bodies, Cosm, GuidanceMode, Orbit, Spacecraft};
 use nyx::dynamics::guidance::{GuidanceLaw, Ruggiero, Thruster};
-use nyx::dynamics::{OrbitalDynamics, SpacecraftDynamics};
+use nyx::dynamics::{Harmonics, OrbitalDynamics, SpacecraftDynamics};
+use nyx::io::gravity::HarmonicsMem;
 use nyx::io::trajectory_data::TrajectoryLoader;
 use nyx::md::prelude::{ExportCfg, Interpolatable, Objective};
 use nyx::md::StateParameter;
@@ -13,6 +14,7 @@ use nyx::propagators::*;
 use nyx::time::{Epoch, TimeSeries, Unit};
 use nyx::State;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::mpsc::channel;
 
 // use mimalloc::MiMalloc;
@@ -27,6 +29,9 @@ fn perf_test() {
     // Test that we can correctly interpolate a spacecraft orbit
     let cosm = Cosm::de438();
     let eme2k = cosm.frame("EME2000");
+    let iau_earth = cosm.frame("IAU Earth");
+    println!("eme2k gm: {}", eme2k.gm());
+    println!("eme2k frame name: {}", eme2k);
 
     let mut durations: Vec<Duration> = Vec::new();
     // let start_dt = Epoch::from_gregorian_utc_at_noon(2021, 1, 1);
@@ -34,30 +39,78 @@ fn perf_test() {
     let start_dt = Epoch::from_str("2000-01-01T11:58:55.816Z").unwrap();
     println!("start_dt: {}", start_dt);
 
-    let iterations = 30;
+    let iterations = 5;
+
     for i in 1..iterations + 1 {
-        let start_state = Orbit::cartesian(7_000., 1_000., 4_000., -0.5, 8., 1., start_dt, eme2k);
+        let start_state = Orbit::cartesian(7_000., 0., 0., 0., 8., 0., start_dt, eme2k);
+        // let start_state = Orbit::cartesian(7_000., 1_000., 4_000., -0.5, 8., 1., start_dt, eme2k);
 
         let mut opts = PropOpts::default();
-        opts.min_step = Duration::from_seconds(0.001);
-        opts.max_step = Duration::from_seconds(200.0);
+        opts.min_step = Duration::from_seconds(60.);
+        opts.max_step = Duration::from_seconds(60.);
         opts.init_step = Duration::from_seconds(60.);
         opts.fixed_step = true;
-        opts.tolerance = 1e-12;
+        opts.tolerance = 1.0;
 
-        let dynamics = OrbitalDynamics::two_body();
-        let setup = Propagator::new::<RK4Fixed>(dynamics, opts);
+        // Gravitational field (Harmonics)
+
+        let gravitational_degree = 21;
+        let earth_sph_harm = HarmonicsMem::from_cof(
+            "data/JGM3.cof.gz",
+            gravitational_degree,
+            gravitational_degree,
+            true,
+        )
+        .unwrap();
+        let harmonics = Harmonics::from_stor(iau_earth, earth_sph_harm, Cosm::de438());
+        // Dynamics
+        // let bodies = vec![Bodies::Luna, Bodies::Sun, Bodies::JupiterBarycenter];
+        // let dynamics = OrbitalDynamics::new(vec![PointMasses::new(&bodies, cosm), harmonics]);
+        let dynamics = OrbitalDynamics::new(vec![harmonics]);
+
+        // let dynamics = OrbitalDynamics::two_body();
+
+        let setup = Propagator::new::<Dormand45>(dynamics, opts);
         let mut prop = setup.with(start_state);
         // The trajectory must always be generated on its own thread, no need to worry about it ;-)
         let now = Epoch::now().unwrap();
         // let (end_state, ephem) = prop.for_duration_with_traj(31 * Unit::Day).unwrap();
-        let end_state = prop.for_duration(31 * Unit::Day).unwrap();
+        // let (end_state, ephem) = prop.for_duration_with_traj(31 * Unit::Day).unwrap();
+        let end_state = prop.for_duration(7 * Unit::Day).unwrap();
         let exec_time = Epoch::now().unwrap() - now;
         println!("#{i} duration = {exec_time}");
         durations.push(exec_time);
         if i == iterations {
             println!("final_state: {}", end_state);
+
+            // for state in ephem.states {
+            //     println!("state: {}", state);
+            // }
         }
+
+        // setup
+        //     .with(start_state)
+        //     .for_duration_with_channel(31 * Unit::Day, tx)
+        //     .unwrap();
+
+        // Evaluate the first time of the trajectory to make sure that one is there too.
+        // let eval_state = ephem.at(start_dt).unwrap();
+
+        // let mut max_pos_err = (eval_state.radius() - start_state.radius()).norm();
+        // let mut max_vel_err = (eval_state.velocity() - start_state.velocity()).norm();
+
+        // while let Ok(prop_state) = rx.recv() {
+        //     let eval_state = ephem.at(prop_state.epoch).unwrap();
+
+        //     let pos_err = (eval_state.radius() - prop_state.radius()).norm();
+        //     if pos_err > max_pos_err {
+        //         max_pos_err = pos_err;
+        //     }
+        //     let vel_err = (eval_state.velocity() - prop_state.velocity()).norm();
+        //     if vel_err > max_vel_err {
+        //         max_vel_err = vel_err;
+        //     }
+        // }
     }
     // Calculate mean and median of durations vector
     let sum: f64 = durations.iter().map(|x| x.to_seconds()).sum();

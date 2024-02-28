@@ -1,3 +1,5 @@
+cargo-features = ["profile-rustflags"]
+
 [package]
 name = "nyx-space"
 build = "build.rs"
@@ -76,6 +78,8 @@ getrandom = { version = "0.2", features = ["js"] }
 typed-builder = "0.18.0"
 pythonize = { version = "0.20", optional = true }
 snafu = { version = "0.8.0", features = ["backtrace"] }
+tikv-jemallocator = "0.5.4"
+mimalloc = "0.1.39"
 
 [dev-dependencies]
 polars = { version = "0.37.0", features = ["parquet"] }
@@ -96,9 +100,10 @@ name = "nyx_space"
 [target.x86_64-unknown-linux-gnu]
 # For flamegraph -- https://github.com/flamegraph-rs/flamegraph
 linker = "/usr/bin/clang"
-rustflags = ["-Clink-arg=-fuse-ld=lld", "-Clink-arg=-Wl,--no-rosegment"]
-# rustflags = ["-Clink-arg=-fuse-ld=lld", "-Clink-arg=-Wl,--no-rosegment", "-C", "target-cpu=native"]
+rustflags = ["-Clink-arg=-fuse-ld=lld", "-Clink-arg=-Wl,--no-rosegment", "-C target-cpu=native"]
 
-# [profile.release]
-# codegen-units = 1
-# lto = "thin"
+[profile.release]
+codegen-units = 1
+lto = "fat"
+rustflags = ["-Z", "threads=8"]
+panic = "abort"
