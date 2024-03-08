@@ -100,10 +100,19 @@ name = "nyx_space"
 [target.x86_64-unknown-linux-gnu]
 # For flamegraph -- https://github.com/flamegraph-rs/flamegraph
 linker = "/usr/bin/clang"
-rustflags = ["-Clink-arg=-fuse-ld=lld", "-Clink-arg=-Wl,--no-rosegment", "-C target-cpu=native"]
+rustflags = [
+    "-Clink-arg=-fuse-ld=lld",
+    "-Clink-arg=-Wl,--no-rosegment",
+    "-C target-cpu=native",
+]
 
 [profile.release]
 codegen-units = 1
 lto = "fat"
-rustflags = ["-Z", "threads=8"]
+#rustflags = ["-Z", "threads=8"]
 panic = "abort"
+debug-assertions = false
+overflow-checks = false
+# try also 2, may be faster
+opt-level = 3
+debug = false

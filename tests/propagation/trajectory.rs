@@ -30,6 +30,8 @@ fn perf_test() {
     let cosm = Cosm::de438();
     let eme2k = cosm.frame("EME2000");
     let iau_earth = cosm.frame("IAU Earth");
+    println!("eme2k geoid = {}", eme2k.is_geoid());
+    println!("iau_earth geoid = {}", iau_earth.is_geoid());
     println!("eme2k gm: {}", eme2k.gm());
     println!("eme2k frame name: {}", eme2k);
 
@@ -39,10 +41,12 @@ fn perf_test() {
     let start_dt = Epoch::from_str("2000-01-01T11:58:55.816Z").unwrap();
     println!("start_dt: {}", start_dt);
 
-    let iterations = 5;
+    let iterations = 10;
 
-    for i in 1..iterations + 1 {
+    for i in 1..=iterations {
         let start_state = Orbit::cartesian(7_000., 0., 0., 0., 8., 0., start_dt, eme2k);
+        println!("frame = {}", start_state.frame());
+
         // let start_state = Orbit::cartesian(7_000., 1_000., 4_000., -0.5, 8., 1., start_dt, eme2k);
 
         let mut opts = PropOpts::default();
@@ -54,23 +58,28 @@ fn perf_test() {
 
         // Gravitational field (Harmonics)
 
+        let jgmGravityModelFile = "data/JGM3.cof.gz";
+        let egmGravityModelFile = "data/EGM2008_to2190_TideFree.gz";
+
+        let gravitational_order = 21;
         let gravitational_degree = 21;
-        let earth_sph_harm = HarmonicsMem::from_cof(
-            "data/JGM3.cof.gz",
+
+        println!("gravitational_order = {}", gravitational_order);
+        println!("gravitational_degree = {}", gravitational_degree);
+
+        let earth_sph_harm = HarmonicsMem::from_egm(
+            egmGravityModelFile,
             gravitational_degree,
-            gravitational_degree,
+            gravitational_order,
             true,
         )
         .unwrap();
-        let harmonics = Harmonics::from_stor(iau_earth, earth_sph_harm, Cosm::de438());
-        // Dynamics
-        // let bodies = vec![Bodies::Luna, Bodies::Sun, Bodies::JupiterBarycenter];
-        // let dynamics = OrbitalDynamics::new(vec![PointMasses::new(&bodies, cosm), harmonics]);
+        let harmonics = Harmonics::from_stor(eme2k, earth_sph_harm, Cosm::de438());
         let dynamics = OrbitalDynamics::new(vec![harmonics]);
 
         // let dynamics = OrbitalDynamics::two_body();
 
-        let setup = Propagator::new::<Dormand45>(dynamics, opts);
+        let setup = Propagator::new::<RK4Fixed>(dynamics, opts);
         let mut prop = setup.with(start_state);
         // The trajectory must always be generated on its own thread, no need to worry about it ;-)
         let now = Epoch::now().unwrap();
