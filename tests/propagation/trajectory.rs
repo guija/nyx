@@ -24,7 +24,7 @@ use std::sync::mpsc::channel;
 
 #[allow(clippy::identity_op)]
 #[test]
-fn perf_test() {
+fn performance_test() {
     let _ = pretty_env_logger::try_init();
     // Test that we can correctly interpolate a spacecraft orbit
     let cosm = Cosm::de438();
@@ -44,6 +44,8 @@ fn perf_test() {
     let iterations = 10;
 
     for i in 1..=iterations {
+        // Comment in / out to choose differente reference frame from harmonics to require reference frame transformations.
+        // let start_state = Orbit::cartesian(7_000., 0., 0., 0., 8., 0., start_dt, eme2k);
         let start_state = Orbit::cartesian(7_000., 0., 0., 0., 8., 0., start_dt, eme2k);
         println!("frame = {}", start_state.frame());
 
@@ -58,8 +60,8 @@ fn perf_test() {
 
         // Gravitational field (Harmonics)
 
-        let jgmGravityModelFile = "data/JGM3.cof.gz";
-        let egmGravityModelFile = "data/EGM2008_to2190_TideFree.gz";
+        // let jgm_gravity_model_file = "data/JGM3.cof.gz";
+        let egm_gravity_model_file = "data/EGM2008_to2190_TideFree.gz";
 
         let gravitational_order = 21;
         let gravitational_degree = 21;
@@ -67,16 +69,15 @@ fn perf_test() {
         println!("gravitational_order = {}", gravitational_order);
         println!("gravitational_degree = {}", gravitational_degree);
 
-        let earth_sph_harm = HarmonicsMem::from_egm(
-            egmGravityModelFile,
+        let earth_sph_harm_mem = HarmonicsMem::from_egm(
+            egm_gravity_model_file,
             gravitational_degree,
             gravitational_order,
             true,
         )
         .unwrap();
-        let harmonics = Harmonics::from_stor(eme2k, earth_sph_harm, Cosm::de438());
+        let harmonics = Harmonics::from_stor(iau_earth, earth_sph_harm_mem, Cosm::de438());
         let dynamics = OrbitalDynamics::new(vec![harmonics]);
-
         // let dynamics = OrbitalDynamics::two_body();
 
         let setup = Propagator::new::<RK4Fixed>(dynamics, opts);
@@ -91,35 +92,10 @@ fn perf_test() {
         durations.push(exec_time);
         if i == iterations {
             println!("final_state: {}", end_state);
-
             // for state in ephem.states {
             //     println!("state: {}", state);
             // }
         }
-
-        // setup
-        //     .with(start_state)
-        //     .for_duration_with_channel(31 * Unit::Day, tx)
-        //     .unwrap();
-
-        // Evaluate the first time of the trajectory to make sure that one is there too.
-        // let eval_state = ephem.at(start_dt).unwrap();
-
-        // let mut max_pos_err = (eval_state.radius() - start_state.radius()).norm();
-        // let mut max_vel_err = (eval_state.velocity() - start_state.velocity()).norm();
-
-        // while let Ok(prop_state) = rx.recv() {
-        //     let eval_state = ephem.at(prop_state.epoch).unwrap();
-
-        //     let pos_err = (eval_state.radius() - prop_state.radius()).norm();
-        //     if pos_err > max_pos_err {
-        //         max_pos_err = pos_err;
-        //     }
-        //     let vel_err = (eval_state.velocity() - prop_state.velocity()).norm();
-        //     if vel_err > max_vel_err {
-        //         max_vel_err = vel_err;
-        //     }
-        // }
     }
     // Calculate mean and median of durations vector
     let sum: f64 = durations.iter().map(|x| x.to_seconds()).sum();
