@@ -41,7 +41,7 @@ fn performance_test() {
     let start_dt = Epoch::from_str("2000-01-01T11:58:55.816Z").unwrap();
     println!("start_dt: {}", start_dt);
 
-    let iterations = 10;
+    let iterations = 10000;
 
     for i in 1..=iterations {
         // Comment in / out to choose differente reference frame from harmonics to require reference frame transformations.

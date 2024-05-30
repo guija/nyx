@@ -108,11 +108,13 @@ rustflags = [
 
 [profile.release]
 codegen-units = 1
-lto = "fat"
+# lto = "fat"
+lto = false
 #rustflags = ["-Z", "threads=8"]
 panic = "abort"
 debug-assertions = false
 overflow-checks = false
 # try also 2, may be faster
-opt-level = 3
-debug = false
+opt-level = 2
+# debug = false
+debug = true

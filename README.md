@@ -141,3 +141,16 @@ median = 221.0 ms
 - For same frames: 87ms (nyx) vs 119ms (orekit) -> nyx is 27% faster.
 - For different frames: 303ms vs 221ms (orekit) -> nys is 37% slower.
 - Reference frame transformations are significantly faster in orekit or the harmonics implementation is very different in orekit.
+  - Potentially slow candidate from profiling: `rotations.rs::dcm_to_parent`
+
+# Performance monitoring
+
+```
+cargo install flamegraph
+sudo apt install linux-tools-common linux-tools-generic linux-tools-`uname -r`
+sudo sysctl kernel.perf_event_paranoid=3
+cargo flamegraph --release --test lib -- propagation::trajectory::performance_test
+sudo apt install hotspot # install ui for opening perf traces
+hotspot perf.data
+````
+
